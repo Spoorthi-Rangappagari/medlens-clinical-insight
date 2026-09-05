@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "MedLens Clinical Insight"
+description = "A safety-first clinical information workspace that organizes patient details and medical reports into structured, traceable records with human verification and patient-friendly summaries."
+version = "1.0.0"
+id = "artifacts/medlens"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19084
+
+[services.development]
+run = "pnpm --filter @workspace/medlens run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/medlens", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/medlens/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19084"
+BASE_PATH = "/"
