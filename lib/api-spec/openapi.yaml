@@ -1,0 +1,443 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: dashboard
+    description: Dashboard and activity operations
+  - name: patients
+    description: Patient record operations
+  - name: reports
+    description: Medical report operations
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /dashboard:
+    get:
+      operationId: getDashboard
+      tags: [dashboard]
+      summary: Get workspace dashboard
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+  /activity:
+    get:
+      operationId: listActivity
+      tags: [dashboard]
+      summary: List recent record activity
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Recent activity
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Activity"
+  /patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List patient records
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [all, needs_review, review_ready]
+            default: all
+      responses:
+        "200":
+          description: Patient records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Patient"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create a patient record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientInput"
+      responses:
+        "201":
+          description: Created patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+  /patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get a patient record
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      responses:
+        "200":
+          description: Patient record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientDetail"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update a patient record
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientUpdate"
+      responses:
+        "200":
+          description: Updated patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /patients/{id}/reports:
+    get:
+      operationId: listPatientReports
+      tags: [reports]
+      summary: List reports for a patient
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      responses:
+        "200":
+          description: Medical reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MedicalReport"
+    post:
+      operationId: createPatientReport
+      tags: [reports]
+      summary: Add a medical report for processing
+      parameters:
+        - $ref: "#/components/parameters/PatientId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportInput"
+      responses:
+        "201":
+          description: Created report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicalReport"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /reports/{id}/analyze:
+    post:
+      operationId: analyzeReport
+      tags: [reports]
+      summary: Extract structured information from a report
+      description: AI-assisted extraction. Results remain unverified until a human reviews them.
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      responses:
+        "200":
+          description: Extracted report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicalReport"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /reports/{id}/review:
+    patch:
+      operationId: reviewReport
+      tags: [reports]
+      summary: Verify or edit extracted report information
+      parameters:
+        - $ref: "#/components/parameters/ReportId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReportReview"
+      responses:
+        "200":
+          description: Reviewed report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicalReport"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    PatientId:
+      name: id
+      in: path
+      required: true
+      schema:
+         type: number
+    ReportId:
+      name: id
+      in: path
+      required: true
+      schema:
+         type: number
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    Dashboard:
+      type: object
+      properties:
+        patientCount:
+          type: number
+        reportCount:
+          type: number
+        needsReviewCount:
+          type: number
+        reviewReadyCount:
+          type: number
+        latestPatient:
+          anyOf:
+            - $ref: "#/components/schemas/Patient"
+            - type: "null"
+      required: [patientCount, reportCount, needsReviewCount, reviewReadyCount, latestPatient]
+    Activity:
+      type: object
+      properties:
+        id:
+          type: number
+        type:
+          type: string
+          enum: [patient_created, report_added, report_analyzed, report_reviewed]
+        label:
+          type: string
+        patientName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, type, label, patientName, createdAt]
+    Patient:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [female, male, intersex, undisclosed]
+        symptoms:
+          type: string
+        conditions:
+          type: array
+          items:
+            type: string
+        allergies:
+          type: array
+          items:
+            type: string
+        medications:
+          type: array
+          items:
+            type: string
+        reportCount:
+          type: number
+        needsReview:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, name, dateOfBirth, sex, symptoms, conditions, allergies, medications, reportCount, needsReview, updatedAt]
+    PatientDetail:
+      allOf:
+        - $ref: "#/components/schemas/Patient"
+        - type: object
+          properties:
+            reports:
+              type: array
+              items:
+                $ref: "#/components/schemas/MedicalReport"
+          required: [reports]
+    PatientInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        dateOfBirth:
+          type: string
+          format: date
+        sex:
+          type: string
+          enum: [female, male, intersex, undisclosed]
+        symptoms:
+          type: string
+        conditions:
+          type: array
+          items:
+            type: string
+        allergies:
+          type: array
+          items:
+            type: string
+        medications:
+          type: array
+          items:
+            type: string
+      required: [name, dateOfBirth, sex, symptoms, conditions, allergies, medications]
+    PatientUpdate:
+      allOf:
+        - $ref: "#/components/schemas/PatientInput"
+    ReportInput:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        reportDate:
+          type: string
+          format: date
+        sourceText:
+          type: string
+          minLength: 1
+      required: [title, reportDate, sourceText]
+    ReportReview:
+      type: object
+      properties:
+        reviewStatus:
+          type: string
+          enum: [needs_review, verified]
+        extractedTests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportTest"
+        summary:
+          type: string
+      required: [reviewStatus, extractedTests, summary]
+    ReportTest:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+        unit:
+          type: string
+        referenceRange:
+          type: string
+        status:
+          type: string
+          enum: [low, normal, high, unknown]
+        observation:
+          type: string
+        provenance:
+          type: string
+          enum: [source, ai, human_verified]
+      required: [name, value, unit, referenceRange, status, observation, provenance]
+    MedicalReport:
+      type: object
+      properties:
+        id:
+          type: number
+        patientId:
+          type: number
+        title:
+          type: string
+        reportDate:
+          type: string
+          format: date
+        reviewStatus:
+          type: string
+          enum: [needs_review, processing, verified]
+        summary:
+          type: string
+        extractedTests:
+          type: array
+          items:
+            $ref: "#/components/schemas/ReportTest"
+        sourceText:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        analyzedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, patientId, title, reportDate, reviewStatus, summary, extractedTests, sourceText, createdAt, analyzedAt]
+
