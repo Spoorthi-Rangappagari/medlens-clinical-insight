@@ -1,0 +1,40 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/medlens:$COMMIT_SHA
+      - .
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/medlens:$COMMIT_SHA
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/medlens:$COMMIT_SHA
+      - --region
+      - ${_REGION}
+      - --platform
+      - managed
+      - --port
+      - "8080"
+      - --allow-unauthenticated
+      - --set-env-vars
+      - NODE_ENV=production
+      - --set-secrets
+      - DATABASE_URL=${_DATABASE_SECRET}:latest,OPENAI_API_KEY=${_OPENAI_SECRET}:latest
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/medlens:$COMMIT_SHA
+substitutions:
+  _REGION: us-central1
+  _REPOSITORY: medlens
+  _SERVICE: medlens
+  _DATABASE_SECRET: medlens-database-url
+  _OPENAI_SECRET: medlens-openai-key
+options:
+  logging: CLOUD_LOGGING_ONLY
